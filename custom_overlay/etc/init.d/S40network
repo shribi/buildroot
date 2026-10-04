@@ -1,0 +1,31 @@
+#!/bin/sh
+
+case "$1" in
+    start)
+        echo "Starting Ethernet..."
+
+        # Bring Ethernet interface up
+        ip link set eth0 up
+
+        # Get an IP address using DHCP
+        udhcpc -i eth0 -b
+
+        ;;
+
+    stop)
+        echo "Stopping Ethernet..."
+        ip link set eth0 down
+        ;;
+
+    restart)
+        "$0" stop
+        "$0" start
+        ;;
+
+    *)
+        echo "Usage: $0 {start|stop|restart}"
+        exit 1
+        ;;
+esac
+
+exit 0

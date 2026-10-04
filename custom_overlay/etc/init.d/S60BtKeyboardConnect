@@ -1,0 +1,101 @@
+#!/bin/sh
+
+KEYBOARD="1E:0C:12:16:21:AB"
+UART="/dev/ttyAMA0"
+
+start_bluetooth()
+{
+    echo "Starting Bluetooth..."
+
+    # Don't start btattach if an HCI controller already exists
+    if ! bluetoothctl list 2>/dev/null | grep -q "Controller"; then
+        echo "Attaching Bluetooth controller on $UART..."
+
+        btattach -B "$UART" > /tmp/btattach.log 2>&1 &
+
+        # Wait for the HCI controller to appear
+        i=0
+        while [ $i -lt 10 ]; do
+            if bluetoothctl list 2>/dev/null | grep -q "Controller"; then
+                break
+            fi
+
+            sleep 1
+            i=$((i + 1))
+        done
+    fi
+
+    # Check whether the controller is available
+    if ! bluetoothctl list 2>/dev/null | grep -q "Controller"; then
+        echo "ERROR: Bluetooth controller not available"
+        cat /tmp/btattach.log 2>/dev/null
+        return 1
+    fi
+
+    echo "Bluetooth controller available"
+    (
+        echo "power on"
+        sleep 2
+        echo "agent on"
+        sleep 1
+        echo "default-agent"
+        sleep 1
+        echo "remove $KEYBOARD"
+        sleep 2
+        echo "scan on"
+        sleep 10
+        echo "scan off"
+        sleep 2
+        echo "pair $KEYBOARD"
+        sleep 5
+        echo "trust $KEYBOARD"
+        sleep 2
+        echo "connect $KEYBOARD"
+        sleep 5
+        echo "quit"
+    ) | bluetoothctl
+
+    echo "Bluetooth startup completed"
+}
+
+
+stop_bluetooth()
+{
+    echo "Disconnecting Bluetooth keyboard..."
+    (
+        echo "disconnect $KEYBOARD"
+        sleep 2
+        echo "quit"
+    ) | bluetoothctl
+
+    # Stop btattach if it is running
+    killall btattach 2>/dev/null
+
+    echo "Bluetooth stopped"
+}
+
+
+case "$1" in
+
+    start)
+        # start_bluetooth
+        ;;
+
+    stop)
+        stop_bluetooth
+        ;;
+
+    restart)
+        stop_bluetooth
+        sleep 1
+        start_bluetooth
+        ;;
+
+    *)
+        echo "Usage: $0 {start|stop|restart}"
+        exit 1
+        ;;
+
+esac
+
+exit $?
